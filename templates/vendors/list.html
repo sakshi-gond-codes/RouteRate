@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load routerate humanize %}
+{% block title %}Vendors{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><div class="eyebrow">Setup</div><h1>Vendors</h1>
+    <p class="lead-sm">Carriers we buy termination from. Priority breaks ties when two vendors have the same rate (1 = most preferred).</p></div>
+  {% if user.can_manage_rates %}<a class="btn btn-primary" href="{% url 'vendors:create' %}"><i class="bi bi-plus-lg me-1"></i>Add vendor</a>{% endif %}
+</div>
+<div class="card"><div class="table-wrap"><table class="table table-hover">
+  <thead><tr><th>Vendor</th><th>Code</th><th class="text-end">Priority</th><th>Increment</th><th class="text-end">Live prefixes</th>
+    <th class="text-end">LCR primary wins</th><th class="text-end">Decks</th><th>Last deck</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+  {% for row in rows %}{% with v=row.vendor %}
+  <tr class="{% if not v.is_active %}row-muted{% endif %}">
+    <td><a class="fw-semibold text-decoration-none" href="{% url 'vendors:detail' v.pk %}">{{ v.name }}</a><div class="small text-body-secondary">{{ v.contact_email }}</div></td>
+    <td><span class="badge text-bg-light border mono">{{ v.code }}</span></td>
+    <td class="num">{{ v.priority }}</td>
+    <td class="mono small">{{ v.default_increment }}</td>
+    <td class="num">{{ row.live|intcomma }}</td>
+    <td class="num">{{ row.wins }}</td>
+    <td class="num">{{ v.deck_count }}{% if v.pending %} <span class="badge bg-warning-subtle text-warning-emphasis" title="Waiting for activation">{{ v.pending }} pending</span>{% endif %}</td>
+    <td class="small text-body-secondary">{{ v.last_deck_at|date:"d M Y"|default:"—" }}</td>
+    <td>{% if v.is_active %}<span class="small text-success fw-semibold">Active</span>{% else %}<span class="small text-body-secondary">Inactive</span>{% endif %}</td>
+    <td class="text-end text-nowrap">
+      {% if user.can_manage_rates %}
+      <a class="btn btn-sm btn-light" href="{% url 'ratedecks:upload' %}?vendor={{ v.pk }}" title="Upload deck"><i class="bi bi-cloud-arrow-up"></i></a>
+      <a class="btn btn-sm btn-light" href="{% url 'vendors:edit' v.pk %}" title="Edit"><i class="bi bi-pencil"></i></a>
+      {% endif %}
+      {% if user.is_admin_role %}<a class="btn btn-sm btn-light text-danger" href="{% url 'vendors:delete' v.pk %}" title="Delete"><i class="bi bi-trash3"></i></a>{% endif %}
+    </td>
+  </tr>
+  {% endwith %}{% empty %}
+  <tr><td colspan="10"><div class="empty-state"><i class="bi bi-building"></i>No vendors yet.</div></td></tr>
+  {% endfor %}
+  </tbody>
+</table></div></div>
+{% if latest_run %}<p class="small text-body-secondary mt-2">LCR wins are from run #{{ latest_run.pk }} (rates as of {{ latest_run.as_of_date|date:"d M Y" }}).</p>{% endif %}
+{% endblock %}

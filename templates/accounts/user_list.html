@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Users & roles{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><div class="eyebrow">Admin</div><h1>Users &amp; roles</h1>
+    <p class="lead-sm">Roles are checked on the server for every page and action, not just hidden in the menu.</p></div>
+  <a class="btn btn-primary" href="{% url 'accounts:user_create' %}"><i class="bi bi-person-plus me-1"></i>Add user</a>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4"><div class="card h-100"><div class="card-body">
+    <div class="fw-bold"><i class="bi bi-shield-check text-primary me-1"></i>Admin</div>
+    <p class="small text-body-secondary mb-0 mt-1">Everything a Rate Analyst can do, plus managing users, deleting vendors and LCR runs.</p>
+  </div></div></div>
+  <div class="col-md-4"><div class="card h-100"><div class="card-body">
+    <div class="fw-bold"><i class="bi bi-sliders text-primary me-1"></i>Rate Analyst</div>
+    <p class="small text-body-secondary mb-0 mt-1">Uploads and activates rate decks, manages vendors, customers, margins and blocks, runs LCR and generates rate sheets.</p>
+  </div></div></div>
+  <div class="col-md-4"><div class="card h-100"><div class="card-body">
+    <div class="fw-bold"><i class="bi bi-eye text-primary me-1"></i>Viewer</div>
+    <p class="small text-body-secondary mb-0 mt-1">Read-only access to dashboards, reports, comparisons and rate sheets, including downloads.</p>
+  </div></div></div>
+</div>
+
+<div class="card"><div class="table-wrap"><table class="table table-hover">
+  <thead><tr><th>User</th><th>Username</th><th>Role</th><th>Status</th><th class="text-end">Decks uploaded</th><th>Last login</th><th></th></tr></thead>
+  <tbody>
+  {% for u in users %}
+    <tr class="{% if not u.is_active %}row-muted{% endif %}">
+      <td><div class="d-flex align-items-center gap-2"><span class="avatar" style="width:30px;height:30px">{{ u.initials }}</span>
+        <div><div class="fw-semibold">{{ u.display_name }}{% if u == user %} <span class="text-body-secondary small">(you)</span>{% endif %}</div><div class="small text-body-secondary">{{ u.email }}</div></div></div></td>
+      <td class="mono">{{ u.username }}</td>
+      <td><span class="badge {% if u.role == 'admin' %}text-bg-dark{% elif u.role == 'analyst' %}text-bg-primary{% else %}text-bg-light border text-secondary{% endif %}">{{ u.get_role_display }}</span></td>
+      <td>{% if u.is_active %}<span class="text-success small fw-semibold">Active</span>{% else %}<span class="text-body-secondary small">Inactive</span>{% endif %}</td>
+      <td class="num">{{ u.deck_count }}</td>
+      <td class="small text-body-secondary">{{ u.last_login|date:"d M Y H:i"|default:"Never" }}</td>
+      <td class="text-end"><a class="btn btn-sm btn-light" href="{% url 'accounts:user_edit' u.pk %}"><i class="bi bi-pencil"></i></a></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table></div></div>
+{% endblock %}

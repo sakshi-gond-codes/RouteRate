@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load routerate %}
+{% block title %}Vendor comparison{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><div class="eyebrow">Routing</div><h1>Prefix-based vendor comparison</h1>
+    <p class="lead-sm">Each vendor's price for every prefix, using the longest matching prefix in its deck. When a vendor has no exact price, the shorter prefix it falls back to is shown under the rate.</p></div>
+  {% include "includes/export_buttons.html" %}
+</div>
+<div class="card">
+  <form class="filter-bar" method="get">
+    <div><label class="d-block">Rates in force on</label><input type="date" class="form-control form-control-sm" name="as_of" value="{{ as_of|date:'Y-m-d' }}"></div>
+    <div><label class="d-block">Country</label><select class="form-select form-select-sm" name="country"><option value="">All countries</option>
+      {% for c in countries %}<option value="{{ c.pk }}" {% if country == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }} (+{{ c.dial_code }})</option>{% endfor %}</select></div>
+    <div><label class="d-block">Prefix starts with</label><input class="form-control form-control-sm mono" name="q" value="{{ q }}" placeholder="e.g. 447" inputmode="numeric"></div>
+    <div><label class="d-block">Show</label><select class="form-select form-select-sm" name="only">
+      <option value="">All prefixes</option>
+      <option value="single" {% if only == 'single' %}selected{% endif %}>No backup route</option>
+      <option value="fallback" {% if only == 'fallback' %}selected{% endif %}>Priced via a shorter prefix</option>
+      <option value="blocked" {% if only == 'blocked' %}selected{% endif %}>With blocks</option></select></div>
+    <button class="btn btn-sm btn-primary" type="submit"><i class="bi bi-funnel me-1"></i>Compare</button>
+  </form>
+  <div class="px-3 py-2 small border-bottom d-flex flex-wrap gap-3 text-body-secondary">
+    <span><span class="legend-swatch" style="background:#e5f6ec;border:1px solid #9fd8b6"></span>Cheapest (primary route)</span>
+    <span><span class="legend-swatch" style="background:#eef3ff;border:1px solid #b9c8fa"></span>2nd cheapest (backup)</span>
+    <span><span class="text-decoration-line-through">0.0123</span> vendor blocked for this prefix</span>
+    <span><span class="mono">via 44</span> priced from a shorter prefix</span>
+    <span class="ms-auto">{{ total }} prefixes · rates as of {{ as_of|date:"d M Y" }}</span>
+  </div>
+  <div class="table-wrap"><table class="table table-sm table-hover matrix">
+    <thead><tr><th>Prefix</th><th>Destination</th>{% for v in vendors %}<th class="text-end" title="{{ v.name }} (priority {{ v.priority }})">{{ v.code }}</th>{% endfor %}<th>Primary</th><th class="text-end">Spread</th></tr></thead>
+    <tbody>{% for row in page %}
+      <tr class="{% if row.blocked_reason %}row-muted{% elif row.status == 'single' or row.status == 'no_route' %}row-warn{% endif %}">
+        <td><code class="prefix">{{ row.prefix }}</code></td>
+        <td class="small">{{ row.destination }}{% if row.blocked_reason %}<div class="text-danger small"><i class="bi bi-slash-circle me-1"></i>Blocked: {{ row.blocked_reason }}</div>{% endif %}</td>
+        {% for cell in row.cells %}
+          {% if cell.quote %}
+          <td class="cell {% if row.blocked_reason or cell.quote.blocked_reason %}blocked{% elif cell.rank == 1 %}rank-1{% elif cell.rank == 2 %}rank-2{% endif %}" {% if cell.quote.blocked_reason %}title="Blocked for this vendor: {{ cell.quote.blocked_reason }}"{% endif %}>
+            {{ cell.quote.rate|rate }}{% if not cell.quote.exact %}<span class="via">via {{ cell.quote.matched_prefix }}</span>{% endif %}</td>
+          {% else %}<td class="cell text-body-tertiary">—</td>{% endif %}
+        {% endfor %}
+        <td class="small text-nowrap">{% if row.ranked %}<b>{{ row.ranked.0.vendor.code }}</b>{% if row.ranked|length == 1 %} <span class="badge bg-warning-subtle text-warning-emphasis">no backup</span>{% endif %}{% else %}—{% endif %}</td>
+        <td class="num small">{{ row.spread_pct|pct }}</td>
+      </tr>
+    {% empty %}<tr><td colspan="{{ vendors|length|add:4 }}"><div class="empty-state"><i class="bi bi-search"></i>No prefixes match the filters.</div></td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% include "includes/pagination.html" %}
+</div>
+{% endblock %}

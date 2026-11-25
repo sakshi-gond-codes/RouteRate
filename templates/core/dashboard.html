@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% load static routerate humanize %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="eyebrow">{{ today|date:"l, d F Y" }}</div>
+    <h1>Good to see you, {{ user.first_name|default:user.username }}</h1>
+    <p class="lead-sm">Live routing table built from {{ kpis.vendors }} active vendors. Everything below reflects rates in force today.</p>
+  </div>
+  {% if user.can_manage_rates %}
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-primary" href="{% url 'routing:lcr_list' %}"><i class="bi bi-diagram-3 me-1"></i>Run LCR</a>
+    <a class="btn btn-primary" href="{% url 'ratedecks:upload' %}"><i class="bi bi-cloud-arrow-up me-1"></i>Upload rate deck</a>
+  </div>
+  {% endif %}
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-xl-3"><a class="kpi-link" href="{% url 'ratedecks:rates' %}"><div class="card kpi">
+    <div class="kpi-label"><span class="kpi-icon"><i class="bi bi-hash"></i></span>Live prefixes</div>
+    <div class="kpi-value">{{ kpis.prefixes|intcomma }}</div>
+    <div class="kpi-foot">{{ kpis.countries }} countries · {{ kpis.vendors }} vendors</div>
+  </div></a></div>
+  <div class="col-6 col-xl-3"><a class="kpi-link" href="{% if latest_run %}{% url 'routing:lcr_detail' latest_run.pk %}{% else %}{% url 'routing:lcr_list' %}{% endif %}"><div class="card kpi">
+    <div class="kpi-label"><span class="kpi-icon"><i class="bi bi-currency-dollar"></i></span>Avg LCR cost / min</div>
+    <div class="kpi-value mono">{% if latest_run %}{{ latest_run.avg_primary_rate|rate }}{% else %}—{% endif %}</div>
+    <div class="kpi-foot">{% if latest_run %}LCR #{{ latest_run.pk }}, rates as of {{ latest_run.as_of_date|date:"d M" }}{% else %}No LCR run yet{% endif %}</div>
+  </div></a></div>
+  <div class="col-6 col-xl-3"><a class="kpi-link" href="{% if latest_run %}{% url 'routing:lcr_detail' latest_run.pk %}?status=single{% else %}#{% endif %}"><div class="card kpi">
+    <div class="kpi-label"><span class="kpi-icon" style="background:#fff2d6;color:#a76a00"><i class="bi bi-life-preserver"></i></span>No backup route</div>
+    <div class="kpi-value">{% if latest_run %}{{ latest_run.single_route_count }}{% else %}—{% endif %}</div>
+    <div class="kpi-foot">{% if latest_run %}{{ latest_run.routed_count|intcomma }} routed with backup · {{ latest_run.blocked_count }} blocked{% else %}&nbsp;{% endif %}</div>
+  </div></a></div>
+  <div class="col-6 col-xl-3"><a class="kpi-link" href="{% url 'ratedecks:history' %}"><div class="card kpi">
+    <div class="kpi-label"><span class="kpi-icon"><i class="bi bi-files"></i></span>Decks (30 days)</div>
+    <div class="kpi-value">{{ kpis.decks_30d }}</div>
+    <div class="kpi-foot">{% if kpis.pending %}<span class="text-warning-emphasis fw-semibold">{{ kpis.pending }} waiting for activation</span>{% else %}None waiting{% endif %} · {{ kpis.scheduled }} scheduled rates</div>
+  </div></a></div>
+</div>
+
+{% if pending_decks %}
+<div class="alert alert-warning d-flex flex-wrap align-items-center gap-2">
+  <i class="bi bi-hourglass-split"></i>
+  <span><b>{{ pending_decks|length }} processed deck{{ pending_decks|length|pluralize }} waiting for activation:</b>
+  {% for d in pending_decks %}<a class="alert-link ms-1" href="{% url 'ratedecks:detail' d.pk %}">{{ d.vendor.code }} #{{ d.pk }}</a>{% if not forloop.last %},{% endif %}{% endfor %}</span>
+</div>
+{% endif %}
+
+<div class="row g-3 mb-3">
+  <div class="col-xl-7">
+    <div class="card h-100">
+      <div class="card-header"><h2 class="card-title-sm">Vendor coverage vs. LCR wins</h2>
+        <p class="card-sub">Prefixes each vendor prices today, and how many it wins as the cheapest (primary) route{% if latest_run %} in LCR #{{ latest_run.pk }}{% endif %}.</p></div>
+      <div class="card-body">
+        {% if vendor_chart %}
+        <div class="chart-box"><canvas id="vendorChart" role="img" aria-label="Bar chart of prefixes priced and primary route wins per vendor"></canvas></div>
+        <details class="mt-2 small"><summary class="text-body-secondary">Show as table</summary>
+          <table class="table table-sm mt-2"><thead><tr><th>Vendor</th><th class="text-end">Prefixes priced</th><th class="text-end">Primary wins</th></tr></thead><tbody>
+          {% for label in vendor_chart.labels %}<tr><td>{{ label }}</td><td class="num">{{ vendor_chart.quoted|get_item:forloop.counter0 }}</td><td class="num">{{ vendor_chart.wins|get_item:forloop.counter0 }}</td></tr>{% endfor %}
+          </tbody></table></details>
+        {{ vendor_chart|json_script:"vendor-chart-data" }}
+        {% else %}
+        <div class="empty-state"><i class="bi bi-diagram-3"></i>Run LCR to see which vendors win each destination.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-xl-5">
+    <div class="card h-100">
+      <div class="card-header"><h2 class="card-title-sm">Recent deck processing</h2>
+        <p class="card-sub">Rows accepted, duplicates removed and rows rejected per uploaded deck.</p></div>
+      <div class="card-body">
+        {% if deck_chart.labels %}
+        <div class="chart-box"><canvas id="deckChart" role="img" aria-label="Stacked bar chart of accepted, duplicate and rejected rows for recent decks"></canvas></div>
+        {{ deck_chart|json_script:"deck-chart-data" }}
+        {{ status_colors|json_script:"status-colors" }}
+        {% else %}
+        <div class="empty-state"><i class="bi bi-files"></i>No decks processed yet.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6 col-xl-4">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-start">
+        <div><h2 class="card-title-sm">Destinations without backup</h2><p class="card-sub">Only one vendor can route these today.</p></div>
+        {% if latest_run %}<a class="small" href="{% url 'routing:lcr_detail' latest_run.pk %}?status=single">All</a>{% endif %}
+      </div>
+      <ul class="list-group list-group-flush">
+        {% for e in no_backup %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <div><code class="prefix">{{ e.prefix }}</code> <span class="small">{{ e.destination }}</span></div>
+          <span class="small text-body-secondary">{{ e.primary_vendor.code|default:"no route" }} <span class="mono">{{ e.primary_rate|rate }}</span></span>
+        </li>
+        {% empty %}
+        <li class="list-group-item text-body-secondary small"><i class="bi bi-check-circle text-success me-1"></i>Every routed destination has a backup.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  <div class="col-lg-6 col-xl-4">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-start">
+        <div><h2 class="card-title-sm">Upcoming rate changes</h2><p class="card-sub">Vendor rates scheduled to start later.</p></div>
+        <a class="small" href="{% url 'ratedecks:rates' %}?view=scheduled">All</a>
+      </div>
+      <ul class="list-group list-group-flush">
+        {% for r in upcoming %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <div><span class="fw-semibold small">{{ r.vendor.code }}</span> <code class="prefix">{{ r.prefix }}</code> {% change_badge r.change %}</div>
+          <div class="text-end small"><span class="mono">{{ r.previous_rate|rate }} → {{ r.rate|rate }}</span><div class="text-body-secondary">from {{ r.effective_from|date:"d M Y" }}</div></div>
+        </li>
+        {% empty %}
+        <li class="list-group-item text-body-secondary small">No scheduled changes.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  <div class="col-xl-4">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-start">
+        <div><h2 class="card-title-sm">Recent activity</h2><p class="card-sub">Uploads, activations, LCR runs and rate sheets.</p></div>
+        {% if user.is_admin_role %}<a class="small" href="{% url 'core:activity' %}">All</a>{% endif %}
+      </div>
+      <div class="card-body pt-1">
+        <ul class="timeline">
+          {% for a in activity %}
+          <li><span class="t-icon"><i class="bi bi-{{ a.icon }}"></i></span>
+            <div><div>{{ a.description }}</div><div class="small text-body-secondary">{{ a.user.display_name|default:"System" }} · {{ a.created_at|naturaltime }}</div></div></li>
+          {% empty %}<li class="text-body-secondary">Nothing yet.</li>{% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'vendor/chartjs/chart.umd.min.js' %}"></script>
+<script src="{% static 'js/charts.js' %}"></script>
+<script>
+  RouteRateCharts.vendorCoverage("vendorChart", "vendor-chart-data", {{ series_colors|safe }});
+  {% if deck_chart.labels %}RouteRateCharts.deckOutcomes("deckChart", "deck-chart-data", RouteRateCharts.read("status-colors"));{% endif %}
+</script>
+{% endblock %}

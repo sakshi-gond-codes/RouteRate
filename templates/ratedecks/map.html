@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% load static routerate %}
+{% block title %}Map columns · {{ deck.vendor.code }} #{{ deck.pk }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><div class="eyebrow">{{ deck.vendor.name }} · deck #{{ deck.pk }}</div><h1>Map the columns</h1>
+    <p class="lead-sm"><span class="mono">{{ deck.original_filename }}</span> · {{ data_rows }} data rows
+      {% if info.sheet %} · sheet <b>{{ info.sheet }}</b>{% else %} · delimiter <b class="mono">{{ info.delimiter }}</b>{% endif %}
+      · header found on row {{ detected_header }}.
+      {% if used_saved %}<span class="text-success"><i class="bi bi-magic ms-1"></i> Pre-filled from this vendor's saved mapping.</span>{% else %}Columns were matched by name.{% endif %}</p></div>
+</div>
+{% with step=2 %}{% include "ratedecks/_steps.html" %}{% endwith %}
+
+<div class="row g-3">
+  <div class="col-xl-4">
+    <form method="post" novalidate data-busy="Processing deck…" id="map-form">{% csrf_token %}
+      <input type="hidden" name="process" value="1">
+      <div class="card mb-3">
+        <div class="card-header"><h2 class="card-title-sm">Which column holds what?</h2><p class="card-sub">Prefix and rate are required.</p></div>
+        <div class="card-body pt-1">
+          {% if form.non_field_errors %}<div class="alert alert-danger small mt-2">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>{% endif %}
+          {% for field in form.mapping_fields %}
+          <div class="field-row">
+            <label class="form-label fw-semibold small mb-1" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}</label>
+            {{ field }}
+            <div class="d-flex justify-content-between gap-2 mt-1">
+              <span class="sample small text-body-secondary"></span>
+            </div>
+            <div class="form-text mt-0">{{ field.help_text }}</div>
+            {% if field.errors %}<ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="card mb-3"><div class="card-body">
+        <input type="hidden" name="header_row" value="{{ header_row }}">
+        {% if form.sheet %}<input type="hidden" name="sheet" value="{{ info.sheet }}">{% endif %}
+        {% with field=form.date_order %}{% include "includes/form_field.html" %}{% endwith %}
+        {% with field=form.save_mapping %}{% include "includes/form_field.html" %}{% endwith %}
+        <div id="map-status" class="small mb-2"></div>
+        <button class="btn btn-primary w-100" type="submit" id="process-btn"><i class="bi bi-gear me-1"></i>Process &amp; validate</button>
+        <p class="small text-body-secondary mt-2 mb-0">Nothing goes live yet. You will review the result before activating.</p>
+      </div></div>
+    </form>
+  </div>
+
+  <div class="col-xl-8">
+    <div class="card mb-3">
+      <div class="card-header">
+        <form method="get" class="row g-2 align-items-end">
+          <div class="col-sm-3"><label class="small fw-semibold" for="hdr">Header row</label>
+            <input id="hdr" class="form-control form-control-sm" type="number" min="1" name="header_row" value="{{ header_row }}"></div>
+          {% if info.sheet_names|length > 1 %}
+          <div class="col-sm-5"><label class="small fw-semibold" for="sh">Excel sheet</label>
+            <select id="sh" class="form-select form-select-sm" name="sheet">{% for s in info.sheet_names %}<option {% if s == info.sheet %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+          {% endif %}
+          <div class="col-auto"><button class="btn btn-sm btn-light border" type="submit"><i class="bi bi-arrow-repeat me-1"></i>Reload preview</button></div>
+        </form>
+      </div>
+      <div class="table-wrap">
+        <table class="table table-sm map-preview mb-0" id="map-preview">
+          <thead><tr><th class="rownum">Row</th>{% for c in preview.columns %}<th data-col="{{ c }}">{{ c }}</th>{% endfor %}</tr></thead>
+          <tbody>{% for rownum, values in preview.rows %}<tr><td class="rownum">{{ rownum }}</td>{% for v in values %}<td data-idx="{{ forloop.counter0 }}" title="{{ v }}">{{ v }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+        </table>
+      </div>
+      <div class="px-3 py-2 small text-body-secondary border-top">First 10 data rows. Highlighted columns are mapped.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h2 class="card-title-sm">Top of the file</h2><p class="card-sub">Raw rows as they appear in the file. The yellow row is used as the header.</p></div>
+      <div class="table-wrap"><table class="table table-sm raw-top mb-0"><tbody>
+        {% for rownum, values in raw_top %}<tr class="{% if rownum == header_row %}is-header{% endif %}"><td class="rownum">{{ rownum }}</td>{% for v in values %}<td title="{{ v }}">{{ v }}</td>{% endfor %}</tr>{% endfor %}
+      </tbody></table></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/mapping.js' %}"></script>{% endblock %}

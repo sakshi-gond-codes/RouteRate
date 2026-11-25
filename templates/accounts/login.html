@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Sign in{% endblock %}
+{% block body %}
+<div class="login-wrap">
+  <section class="login-brand">
+    <div class="d-flex align-items-center gap-2">
+      <span class="brand-mark">{% include "includes/logo.svg" %}</span>
+      <span class="fw-bold fs-5">RouteRate</span>
+    </div>
+    <div>
+      <div class="text-uppercase small fw-bold mb-3" style="color:#8ea6ff;letter-spacing:.1em">Voice Rate Deck Engine</div>
+      <h2>From messy vendor rate decks to clean routing and customer prices.</h2>
+      <p class="mt-3">Upload carrier rate files in any layout, validate every prefix, compare vendors, pick primary and backup routes, and publish customer rate sheets with your margins.</p>
+      <div class="login-flow">
+        <span><i class="bi bi-cloud-arrow-up me-1"></i>Upload</span><span>Map columns</span><span>Normalize &amp; validate</span>
+        <span>Effective dates</span><span>Least Cost Routing</span><span>Margins</span><span>Rate sheets</span>
+      </div>
+    </div>
+    <p class="small mb-0" style="color:#6f7ea6">Portfolio project · all vendors, customers and rates are fictional</p>
+  </section>
+
+  <section class="login-form">
+    <div class="inner">
+      <h1 class="h3 fw-bold mb-1">Sign in</h1>
+      <p class="text-body-secondary mb-4">Use one of the demo accounts below.</p>
+      <form method="post" novalidate>{% csrf_token %}
+        {% if form.non_field_errors %}<div class="alert alert-danger py-2 small">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>{% endif %}
+        <div class="mb-3">
+          <label class="form-label fw-semibold small" for="id_username">Username</label>
+          {{ form.username }}
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold small" for="id_password">Password</label>
+          {{ form.password }}
+        </div>
+        <input type="hidden" name="next" value="{{ next }}">
+        <button class="btn btn-primary w-100 py-2" type="submit"><i class="bi bi-box-arrow-in-right me-1"></i>Sign in</button>
+      </form>
+
+      <div class="border rounded-3 p-3 mt-4 bg-body-tertiary">
+        <div class="small fw-bold text-uppercase text-body-secondary mb-2" style="letter-spacing:.05em">Demo accounts</div>
+        <div class="d-grid gap-2">
+          <button type="button" class="btn btn-sm btn-light border text-start demo-login" data-user="admin">
+            <span class="fw-semibold">admin</span> <span class="text-body-secondary">· Admin, full access</span></button>
+          <button type="button" class="btn btn-sm btn-light border text-start demo-login" data-user="analyst">
+            <span class="fw-semibold">analyst</span> <span class="text-body-secondary">· Rate Analyst, uploads &amp; pricing</span></button>
+          <button type="button" class="btn btn-sm btn-light border text-start demo-login" data-user="viewer">
+            <span class="fw-semibold">viewer</span> <span class="text-body-secondary">· Viewer, read only</span></button>
+        </div>
+        <div class="small text-body-secondary mt-2">Password for all: <code>RouteRate@123</code></div>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  document.querySelectorAll(".demo-login").forEach((btn) => btn.addEventListener("click", () => {
+    document.getElementById("id_username").value = btn.dataset.user;
+    document.getElementById("id_password").value = "RouteRate@123";
+    document.getElementById("id_password").focus();
+  }));
+</script>
+{% endblock %}

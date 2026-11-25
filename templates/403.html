@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Access denied{% endblock %}
+{% block content %}
+<div class="card mt-4"><div class="empty-state">
+  <i class="bi bi-shield-lock"></i>
+  <h1 class="h4 text-body fw-bold">You don't have access to this page</h1>
+  <p>{{ message|default:"Your role does not allow this action." }} Ask an Admin if you need access.</p>
+  <a class="btn btn-primary" href="{% url 'core:dashboard' %}">Back to dashboard</a>
+</div></div>
+{% endblock %}

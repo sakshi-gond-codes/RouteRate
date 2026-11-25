@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load routerate %}
+{% block title %}Margin rules{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><div class="eyebrow">Setup</div><h1>Margin &amp; markup rules</h1>
+    <p class="lead-sm">Sell rate = cost + markup, then the minimum margin is enforced and the result is rounded <b>up</b> so we never sell below cost.</p></div>
+  {% if user.can_manage_rates %}<a class="btn btn-primary" href="{% url 'routing:margin_create' %}"><i class="bi bi-plus-lg me-1"></i>Add rule</a>{% endif %}
+</div>
+<div class="help-box mb-3"><i class="bi bi-sort-down me-1"></i><b>Which rule wins?</b> The most specific one:
+  customer + prefix → customer + country → customer default → global prefix → global country → global default. A longer prefix beats a shorter one.</div>
+<div class="card"><div class="table-wrap"><table class="table table-hover">
+  <thead><tr><th>Rule</th><th>Applies to customer</th><th>Destination</th><th>Markup</th><th class="text-end">Min margin / min</th><th>Status</th><th></th></tr></thead>
+  <tbody>{% for r in objects %}<tr class="{% if not r.is_active %}row-muted{% endif %}">
+    <td class="fw-semibold">{{ r.name }}</td>
+    <td>{% if r.customer %}{{ r.customer.name }}{% else %}<span class="text-body-secondary">All customers</span>{% endif %}</td>
+    <td>{% if r.prefix %}<code class="prefix">{{ r.prefix }}</code>{% elif r.country %}{{ r.country.name }}{% else %}<span class="text-body-secondary">All destinations</span>{% endif %}</td>
+    <td><span class="badge bg-primary-subtle text-primary-emphasis mono">{{ r.markup_label }}</span></td>
+    <td class="num">{% if r.min_margin %}${{ r.min_margin|rate }}{% else %}—{% endif %}</td>
+    <td>{% if r.is_active %}<span class="small text-success fw-semibold">Active</span>{% else %}<span class="small text-body-secondary">Off</span>{% endif %}</td>
+    <td class="text-end text-nowrap">{% if user.can_manage_rates %}
+      <a class="btn btn-sm btn-light" href="{% url 'routing:margin_edit' r.pk %}"><i class="bi bi-pencil"></i></a>
+      <a class="btn btn-sm btn-light text-danger" href="{% url 'routing:margin_delete' r.pk %}"><i class="bi bi-trash3"></i></a>{% endif %}</td>
+  </tr>{% empty %}<tr><td colspan="7"><div class="empty-state"><i class="bi bi-percent"></i>No rules. Without rules a default 10% markup is used.</div></td></tr>{% endfor %}</tbody>
+</table></div></div>
+{% endblock %}

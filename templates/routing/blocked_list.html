@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Blocked destinations{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><div class="eyebrow">Setup</div><h1>Blocked destinations</h1>
+    <p class="lead-sm">A block covers the prefix and every longer prefix under it. Without a vendor the destination is not routed or sold. With a vendor, LCR simply skips that vendor.</p></div>
+  {% if user.can_manage_rates %}<a class="btn btn-primary" href="{% url 'routing:blocked_create' %}"><i class="bi bi-slash-circle me-1"></i>Block a destination</a>{% endif %}
+</div>
+<div class="card"><div class="table-wrap"><table class="table table-hover">
+  <thead><tr><th>Prefix</th><th>Country</th><th>Scope</th><th>Reason</th><th>Added</th><th>Status</th><th></th></tr></thead>
+  <tbody>{% for b in objects %}<tr class="{% if not b.is_active %}row-muted{% endif %}">
+    <td><code class="prefix">{{ b.prefix }}</code></td>
+    <td class="small">{{ b.country.name|default:"Unknown" }}</td>
+    <td>{% if b.vendor %}<span class="badge bg-warning-subtle text-warning-emphasis">Skip vendor {{ b.vendor.code }}</span>{% else %}<span class="badge bg-danger-subtle text-danger-emphasis">Blocked for all</span>{% endif %}</td>
+    <td>{{ b.reason }}</td>
+    <td class="small text-body-secondary">{{ b.created_at|date:"d M Y" }}{% if b.created_by %} · {{ b.created_by.display_name }}{% endif %}</td>
+    <td>{% if b.is_active %}<span class="small text-success fw-semibold">Active</span>{% else %}<span class="small text-body-secondary">Off</span>{% endif %}</td>
+    <td class="text-end text-nowrap">{% if user.can_manage_rates %}
+      <a class="btn btn-sm btn-light" href="{% url 'routing:blocked_edit' b.pk %}"><i class="bi bi-pencil"></i></a>
+      <a class="btn btn-sm btn-light text-danger" href="{% url 'routing:blocked_delete' b.pk %}"><i class="bi bi-trash3"></i></a>{% endif %}</td>
+  </tr>{% empty %}<tr><td colspan="7"><div class="empty-state"><i class="bi bi-slash-circle"></i>Nothing is blocked.</div></td></tr>{% endfor %}</tbody>
+</table></div></div>
+<p class="small text-body-secondary mt-2">Changes apply to the next LCR run.</p>
+{% endblock %}

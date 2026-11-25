@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% load static routerate %}
+{% block title %}Upload rate deck{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><div class="eyebrow">Rate decks</div><h1>Upload a vendor rate deck</h1>
+    <p class="lead-sm">CSV or Excel in any layout. Next you map the columns, then RouteRate cleans and validates every row before anything goes live.</p></div>
+</div>
+{% with step=1 %}{% include "ratedecks/_steps.html" %}{% endwith %}
+
+<div class="row g-3">
+  <div class="col-xl-8">
+    <div class="card"><div class="card-body p-4">
+      <form method="post" enctype="multipart/form-data" novalidate data-busy="Uploading…">{% csrf_token %}
+        {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+        <div class="row g-3">
+          <div class="col-md-6">{% with field=form.vendor %}{% include "includes/form_field.html" %}{% endwith %}</div>
+          <div class="col-md-6">{% with field=form.default_effective_date %}{% include "includes/form_field.html" %}{% endwith %}
+            <div class="form-text mt-n2 mb-3">Used for rows with an empty or "Immediate" effective date.</div></div>
+        </div>
+
+        <label class="form-label fw-semibold small">{{ form.file.label }} <span class="text-danger">*</span></label>
+        <div id="drop-zone" class="drop-zone {% if form.file.errors %}border-danger{% endif %}" data-max-mb="10" tabindex="0" role="button" aria-label="Choose a file">
+          <i class="bi bi-file-earmark-arrow-up"></i>
+          <div class="fw-semibold mt-1">Drop the file here or click to browse</div>
+          <div class="small text-body-secondary" id="drop-file-name">.csv or .xlsx, up to 10 MB</div>
+        </div>
+        <div class="d-none">{{ form.file }}</div>
+        {% if form.file.errors %}<ul class="errorlist">{% for e in form.file.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+
+        <div class="row g-3 mt-2">
+          <div class="col-md-7">{% with field=form.deck_type %}{% include "includes/form_field.html" %}{% endwith %}</div>
+          <div class="col-md-5">{% with field=form.duplicate_policy %}{% include "includes/form_field.html" %}{% endwith %}</div>
+        </div>
+        {% with field=form.notes %}{% include "includes/form_field.html" %}{% endwith %}
+        <div class="d-flex gap-2 pt-3 border-top">
+          <button class="btn btn-primary" type="submit">Upload &amp; map columns <i class="bi bi-arrow-right ms-1"></i></button>
+          <a class="btn btn-light" href="{% url 'ratedecks:history' %}">Cancel</a>
+        </div>
+      </form>
+    </div></div>
+  </div>
+  <div class="col-xl-4">
+    <div class="help-box mb-3">
+      <div class="fw-bold mb-1"><i class="bi bi-lightbulb me-1"></i>What gets cleaned automatically</div>
+      <ul class="mb-0 ps-3">
+        <li>Title rows above the header are skipped</li>
+        <li>Delimiter detection (comma, semicolon, tab, pipe)</li>
+        <li><span class="mono">+44</span>, <span class="mono">0044</span>, spaces → <span class="mono">44</span></li>
+        <li>Lists <span class="mono">44, 447</span> and ranges <span class="mono">4470-4479</span></li>
+        <li><span class="mono">$0.0123</span>, <span class="mono">0,0123</span> → 0.0123</li>
+        <li>Excel, ISO, dd/mm/yyyy and text dates</li>
+        <li>Country checked from the prefix dial code</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-header"><h2 class="card-title-sm">Full vs partial deck</h2></div>
+      <div class="card-body small">
+        <p class="mb-2"><b>Full A-Z:</b> the file is the vendor's complete price list. Prefixes missing from it are closed on the deck's effective date.</p>
+        <p class="mb-0"><b>Partial update:</b> only the prefixes in the file change. Everything else keeps its current rate.</p>
+      </div>
+    </div>
+    {% if recent %}
+    <div class="card mt-3"><div class="card-header"><h2 class="card-title-sm">Recent uploads</h2></div>
+      <ul class="list-group list-group-flush">{% for d in recent %}
+        <a class="list-group-item list-group-item-action small d-flex justify-content-between" href="{% url 'ratedecks:detail' d.pk %}">
+          <span class="text-truncate me-2">{{ d.vendor.code }} · {{ d.original_filename }}</span>{% status_badge d.status d.get_status_display %}</a>{% endfor %}</ul></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/upload.js' %}"></script>{% endblock %}

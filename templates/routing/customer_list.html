@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load routerate %}
+{% block title %}Customers{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><div class="eyebrow">Setup</div><h1>Customers</h1>
+    <p class="lead-sm">Customers buy termination from us and receive versioned rate sheets.</p></div>
+  {% if user.can_manage_rates %}<a class="btn btn-primary" href="{% url 'routing:customer_create' %}"><i class="bi bi-plus-lg me-1"></i>Add customer</a>{% endif %}
+</div>
+<div class="card"><div class="table-wrap"><table class="table table-hover">
+  <thead><tr><th>Customer</th><th>Code</th><th>Billing</th><th class="text-end">Notice</th><th class="text-end">Margin rules</th><th>Latest rate sheet</th><th class="text-end">Sheets</th><th>Status</th><th></th></tr></thead>
+  <tbody>{% for c in objects %}<tr class="{% if not c.is_active %}row-muted{% endif %}">
+    <td class="fw-semibold">{{ c.name }}<div class="small text-body-secondary fw-normal">{{ c.contact_email }}</div></td>
+    <td><span class="badge text-bg-light border mono">{{ c.code }}</span></td>
+    <td class="mono small">{{ c.billing_increment }}</td>
+    <td class="num">{{ c.notice_days }} days</td>
+    <td class="num"><a href="{% url 'routing:margin_list' %}">{{ c.rule_count }}</a></td>
+    <td class="small">{% if c.latest_sheet %}<a href="{% url 'routing:ratesheet_detail' c.latest_sheet.pk %}">{{ c.latest_sheet.reference }}</a> <span class="text-body-secondary">· {{ c.latest_sheet.created_at|date:"d M Y" }}</span>{% else %}<span class="text-body-secondary">None yet</span>{% endif %}</td>
+    <td class="num">{{ c.sheet_count }}</td>
+    <td>{% if c.is_active %}<span class="small text-success fw-semibold">Active</span>{% else %}<span class="small text-body-secondary">Inactive</span>{% endif %}</td>
+    <td class="text-end text-nowrap">{% if user.can_manage_rates %}
+      <a class="btn btn-sm btn-light" href="{% url 'routing:ratesheet_create' %}?customer={{ c.pk }}" title="Generate rate sheet"><i class="bi bi-file-earmark-plus"></i></a>
+      <a class="btn btn-sm btn-light" href="{% url 'routing:customer_edit' c.pk %}" title="Edit"><i class="bi bi-pencil"></i></a>{% endif %}</td>
+  </tr>{% empty %}<tr><td colspan="9"><div class="empty-state"><i class="bi bi-people"></i>No customers yet.</div></td></tr>{% endfor %}</tbody>
+</table></div></div>
+{% endblock %}

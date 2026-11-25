@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% load routerate %}
+{% block title %}Vendor rates{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><div class="eyebrow">Effective-date management</div><h1>Vendor rates</h1>
+    <p class="lead-sm">Every rate has a start date and (once replaced) an end date. Pick any date to see exactly which prices applied, or browse scheduled changes and full history.</p></div>
+  {% include "includes/export_buttons.html" %}
+</div>
+<div class="card">
+  <ul class="nav nav-tabs-rr">
+    <li class="nav-item"><a class="nav-link {% if view == 'live' %}active{% endif %}" href="?view=live">In force on a date</a></li>
+    <li class="nav-item"><a class="nav-link {% if view == 'scheduled' %}active{% endif %}" href="?view=scheduled">Scheduled<span class="count">{{ scheduled_count }}</span></a></li>
+    <li class="nav-item"><a class="nav-link {% if view == 'history' %}active{% endif %}" href="?view=history">Full history</a></li>
+  </ul>
+  <form class="filter-bar rounded-0" method="get"><input type="hidden" name="view" value="{{ view }}">
+    {% if view == 'live' %}<div><label class="d-block">Rates in force on</label><input type="date" class="form-control form-control-sm auto-submit" name="as_of" value="{{ as_of|date:'Y-m-d' }}"></div>{% endif %}
+    <div><label class="d-block">Vendor</label><select class="form-select form-select-sm auto-submit" name="vendor"><option value="">All vendors</option>
+      {% for v in vendors %}<option value="{{ v.pk }}" {% if request.GET.vendor == v.pk|stringformat:"s" %}selected{% endif %}>{{ v.name }}</option>{% endfor %}</select></div>
+    <div><label class="d-block">Country</label><select class="form-select form-select-sm auto-submit" name="country"><option value="">All countries</option>
+      {% for c in countries %}<option value="{{ c.pk }}" {% if request.GET.country == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></div>
+    <div><label class="d-block">Prefix / destination</label><input class="form-control form-control-sm" name="q" value="{{ request.GET.q }}" placeholder="e.g. 447"></div>
+    <button class="btn btn-sm btn-light border" type="submit">Filter</button>
+  </form>
+  {% if view == 'live' and as_of != today %}<div class="px-3 py-2 small bg-warning-subtle border-bottom"><i class="bi bi-clock-history me-1"></i>Showing rates in force on <b>{{ as_of|date:"d M Y" }}</b>, not today.</div>{% endif %}
+  <div class="table-wrap"><table class="table table-sm table-hover">
+    <thead><tr><th>Vendor</th><th>Prefix</th><th>Destination</th><th class="text-end">Rate</th><th class="text-end">Previous</th><th>Change</th><th>From</th><th>To</th><th>Deck</th></tr></thead>
+    <tbody>{% for r in page %}<tr class="{% if r.is_superseded %}row-muted{% endif %}">
+      <td><span class="badge text-bg-light border mono">{{ r.vendor.code }}</span></td>
+      <td><code class="prefix">{{ r.prefix }}</code></td><td>{{ r.destination }}</td>
+      <td class="num fw-semibold">{{ r.rate|rate }}</td><td class="num text-body-secondary">{{ r.previous_rate|rate }}</td>
+      <td>{% change_badge r.change %}</td>
+      <td class="small text-nowrap">{{ r.effective_from|date:"d M Y" }}</td>
+      <td class="small text-nowrap">{% if r.is_superseded %}<span title="Replaced before it started">superseded</span>{% elif r.effective_to %}{{ r.effective_to|date:"d M Y" }}{% else %}<span class="text-success">open</span>{% endif %}</td>
+      <td class="small"><a href="{% url 'ratedecks:detail' r.deck_id %}">#{{ r.deck_id }}</a></td></tr>
+    {% empty %}<tr><td colspan="9"><div class="empty-state"><i class="bi bi-calendar2-x"></i>No rates match.</div></td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% include "includes/pagination.html" %}
+</div>
+{% endblock %}

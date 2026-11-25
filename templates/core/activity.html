@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load routerate %}
+{% block title %}Activity log{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><div class="eyebrow">Admin</div><h1>Activity log</h1>
+    <p class="lead-sm">Audit trail of sign-ins, uploads, activations, LCR runs, rate sheets and setup changes.</p></div>
+</div>
+<div class="card">
+  <form class="filter-bar" method="get">
+    <div><label class="d-block">Action</label><select class="form-select form-select-sm auto-submit" name="action">
+      <option value="">All actions</option>{% for a in actions %}<option value="{{ a }}" {% if request.GET.action == a %}selected{% endif %}>{{ a|title }}</option>{% endfor %}</select></div>
+    <div><label class="d-block">User</label><select class="form-select form-select-sm auto-submit" name="user">
+      <option value="">Everyone</option>{% for u in users %}<option value="{{ u.pk }}" {% if request.GET.user == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.display_name }}</option>{% endfor %}</select></div>
+  </form>
+  <div class="table-wrap"><table class="table table-hover">
+    <thead><tr><th style="width:170px">When</th><th>User</th><th>Action</th><th>Description</th></tr></thead>
+    <tbody>{% for a in page %}<tr>
+      <td class="small text-body-secondary text-nowrap">{{ a.created_at|date:"d M Y H:i" }}</td>
+      <td class="small">{{ a.user.display_name|default:"System" }}</td>
+      <td><span class="badge text-bg-light border"><i class="bi bi-{{ a.icon }} me-1"></i>{{ a.action|title }}</span></td>
+      <td>{{ a.description }}</td></tr>
+    {% empty %}<tr><td colspan="4" class="text-body-secondary">No activity.</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% include "includes/pagination.html" %}
+</div>
+{% endblock %}

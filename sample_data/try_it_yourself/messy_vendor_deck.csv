@@ -1,0 +1,28 @@
+Messy Vendor Ltd - rates (sample with deliberate mistakes)
+
+Destination,Code,Price,Start,Billing
+United Kingdom - Fixed,44,0.0045,15/10/2026,60/60
+United Kingdom - Mobile,+44 7,0.0108,15/10/2026,60/60
+United Kingdom - Mobile,4470-4472,0.0110,15/10/2026,60/60
+Germany - Mobile,"0049 151, 0049 152","0,0215",15.10.2026,60/60
+France - Mobile,4916,0.0220,15/10/2026,60/60
+India - Mobile,9198,$0.0089,Immediate,1/1
+Unknown,ABC12,0.0100,15/10/2026,60/60
+Nowhere,999123,0.0200,15/10/2026,60/60
+Spain - Fixed,34,-0.0050,15/10/2026,60/60
+Spain - Mobile,346,,15/10/2026,60/60
+Italy - Fixed,39,0,15/10/2026,60/60
+Italy - Mobile,393,free,15/10/2026,60/60
+Portugal - Mobile,3519,0.0160,31/02/2026,60/60
+Greece - Mobile,306,0.0190,15/10/2026,sixty
+Japan - Mobile,8190,12.5,15/10/2026,60/60
+Satellite - Iridium,8816,4.3500,15/10/2026,60/60
+United Kingdom - Mobile,4479-4470,0.0110,15/10/2026,60/60
+Singapore - Mobile,658,0.0072,15/10/2026,60/60
+Singapore - Mobile,658,0.0068,15/10/2026,60/60
+Hong Kong - Fixed,852,0.0051,15/10/2026,60/60
+Hong Kong - Fixed,852,0.0051,15/10/2026,60/60
+Mexico - Fixed,052,0.0071,15/10/2026,60/60
+Brazil - Fixed,55,0.0072,2027-12-31,60/60
+
+Australia - Mobile,614,0.0230,15/10/2026,60/60

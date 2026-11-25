@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% load routerate humanize %}
+{% block title %}{{ vendor.name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><div class="eyebrow"><a class="text-decoration-none" href="{% url 'vendors:list' %}">Vendors</a> / {{ vendor.code }}</div>
+    <h1>{{ vendor.name }} {% if not vendor.is_active %}<span class="badge text-bg-secondary fs-6 align-middle">Inactive</span>{% endif %}</h1>
+    <p class="lead-sm">{{ vendor.contact_name|default:"No contact" }}{% if vendor.contact_email %} · {{ vendor.contact_email }}{% endif %} · priority {{ vendor.priority }} · default increment <span class="mono">{{ vendor.default_increment }}</span></p></div>
+  {% if user.can_manage_rates %}
+  <div class="d-flex gap-2">
+    <a class="btn btn-light border" href="{% url 'vendors:edit' vendor.pk %}"><i class="bi bi-pencil me-1"></i>Edit</a>
+    <a class="btn btn-primary" href="{% url 'ratedecks:upload' %}?vendor={{ vendor.pk }}"><i class="bi bi-cloud-arrow-up me-1"></i>Upload deck</a>
+  </div>{% endif %}
+</div>
+
+<div class="card mb-3"><div class="stat-strip">
+  <div><div class="s-label">Live prefixes</div><div class="s-value">{{ live_count|intcomma }}</div></div>
+  <div><div class="s-label">Scheduled changes</div><div class="s-value">{{ scheduled_count }}</div></div>
+  <div><div class="s-label">LCR primary</div><div class="s-value">{{ lcr_stats.primary|default:"—" }}</div></div>
+  <div><div class="s-label">LCR backup</div><div class="s-value">{{ lcr_stats.backup|default:"—" }}</div></div>
+  <div><div class="s-label">Last deck</div><div class="s-value fs-6 pt-2">{{ vendor.last_deck_at|date:"d M Y"|default:"—" }}</div></div>
+</div></div>
+
+<div class="row g-3">
+  <div class="col-xl-8">
+    <div class="card">
+      <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div><h2 class="card-title-sm">Rates in force today</h2><p class="card-sub">{{ today|date:"d M Y" }}. History and scheduled rates are in <a href="{% url 'ratedecks:rates' %}?vendor={{ vendor.pk }}&view=history">Vendor rates</a>.</p></div>
+        <form class="d-flex gap-2" method="get">
+          <input class="form-control form-control-sm" name="q" value="{{ request.GET.q }}" placeholder="Prefix or destination">
+          <button class="btn btn-sm btn-light border" type="submit"><i class="bi bi-search"></i></button>
+          <a class="btn btn-sm btn-outline-secondary text-nowrap" href="{% url 'ratedecks:rates' %}?vendor={{ vendor.pk }}&fmt=xlsx"><i class="bi bi-download me-1"></i>Excel</a>
+        </form>
+      </div>
+      <div class="table-wrap"><table class="table table-sm table-hover">
+        <thead><tr><th>Prefix</th><th>Destination</th><th>Country</th><th class="text-end">Rate</th><th>Increment</th><th>Since</th><th>Last change</th></tr></thead>
+        <tbody>{% for r in page %}<tr>
+          <td><code class="prefix">{{ r.prefix }}</code></td><td>{{ r.destination }}</td><td class="small text-body-secondary">{{ r.country.name }}</td>
+          <td class="num">{{ r.rate|rate }}</td><td class="mono small">{{ r.increment }}</td><td class="small">{{ r.effective_from|date:"d M Y" }}</td>
+          <td>{% change_badge r.change %}{% if r.previous_rate %} <span class="small text-body-secondary mono">was {{ r.previous_rate|rate }}</span>{% endif %}</td></tr>
+        {% empty %}<tr><td colspan="7"><div class="empty-state"><i class="bi bi-inbox"></i>No live rates. Upload and activate a deck.</div></td></tr>{% endfor %}</tbody>
+      </table></div>
+      {% include "includes/pagination.html" %}
+    </div>
+  </div>
+  <div class="col-xl-4">
+    <div class="card mb-3">
+      <div class="card-header"><h2 class="card-title-sm">Rate decks</h2></div>
+      <ul class="list-group list-group-flush">
+        {% for d in decks %}
+        <a class="list-group-item list-group-item-action" href="{% url 'ratedecks:detail' d.pk %}">
+          <div class="d-flex justify-content-between"><span class="small fw-semibold text-truncate me-2">#{{ d.pk }} {{ d.original_filename }}</span>{% status_badge d.status d.get_status_display %}</div>
+          <div class="small text-body-secondary">{{ d.uploaded_at|date:"d M Y" }} · {{ d.prefix_count|intcomma }} prefixes{% if d.error_rows %} · <span class="text-danger">{{ d.error_rows }} rejected</span>{% endif %}</div>
+        </a>
+        {% empty %}<li class="list-group-item small text-body-secondary">No decks uploaded.</li>{% endfor %}
+      </ul>
+    </div>
+    <div class="card mb-3">
+      <div class="card-header"><h2 class="card-title-sm">Scheduled changes</h2><p class="card-sub">Rates that start after today.</p></div>
+      <ul class="list-group list-group-flush">
+        {% for r in scheduled %}
+        <li class="list-group-item d-flex justify-content-between"><span><code class="prefix">{{ r.prefix }}</code> {% change_badge r.change %}</span>
+          <span class="small text-end"><span class="mono">{{ r.rate|rate }}</span><br><span class="text-body-secondary">{{ r.effective_from|date:"d M Y" }}</span></span></li>
+        {% empty %}<li class="list-group-item small text-body-secondary">None.</li>{% endfor %}
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-header"><h2 class="card-title-sm">Saved column mapping</h2><p class="card-sub">Applied automatically to this vendor's next upload.</p></div>
+      <div class="card-body small">
+        {% if mapping %}
+        <dl class="row mb-0">{% for field, col in mapping.columns.items %}<dt class="col-5 text-body-secondary fw-normal">{{ field|title }}</dt><dd class="col-7 mono">{{ col }}</dd>{% endfor %}
+          <dt class="col-5 text-body-secondary fw-normal">Header row</dt><dd class="col-7">{{ mapping.header_row }}</dd>
+          <dt class="col-5 text-body-secondary fw-normal">Date order</dt><dd class="col-7 mb-0">{{ mapping.date_order }}</dd></dl>
+        {% else %}<span class="text-body-secondary">No mapping saved yet.</span>{% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

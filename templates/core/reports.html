@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% load static routerate %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><div class="eyebrow">Reports</div><h1>Pricing &amp; routing reports</h1>
+    <p class="lead-sm">Vendor competitiveness uses rates in force today. Country costs use the latest LCR run{% if run %} (#{{ run.pk }}, as of {{ run.as_of_date|date:"d M Y" }}){% endif %}. Margins use each customer's latest rate sheet.</p></div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-xl-6">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-start gap-2">
+        <div><h2 class="card-title-sm">Vendor competitiveness</h2><p class="card-sub">Average % above the cheapest vendor on the prefixes each vendor prices. Lower is more competitive.</p></div>
+        <div class="btn-group btn-group-sm flex-none">
+          <a class="btn btn-outline-secondary" href="?export=vendors&fmt=xlsx"><i class="bi bi-file-earmark-excel"></i></a>
+          <a class="btn btn-outline-secondary" href="?export=vendors&fmt=csv"><i class="bi bi-filetype-csv"></i></a>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="chart-box" style="height:220px"><canvas id="vendorAbove" role="img" aria-label="Average percent above cheapest price per vendor"></canvas></div>
+      </div>
+      <div class="table-wrap"><table class="table table-sm small">
+        <thead><tr><th>Vendor</th><th class="text-end">Priced</th><th class="text-end">Primary</th><th class="text-end">Backup</th><th class="text-end">Win rate</th><th class="text-end">Above cheapest</th></tr></thead>
+        <tbody>{% for r in competitiveness %}<tr>
+          <td class="text-nowrap"><span class="vendor-dot" style="background:{{ colors|get_item:r.vendor_id }}"></span>{{ r.vendor }}</td>
+          <td class="num">{{ r.prefixes }}</td><td class="num">{{ r.primary }}</td><td class="num">{{ r.backup }}</td>
+          <td class="num">{{ r.win_rate|pct }}</td><td class="num">{{ r.avg_above|pct }}</td></tr>
+        {% empty %}<tr><td colspan="6" class="text-body-secondary">No live rates yet.</td></tr>{% endfor %}</tbody>
+      </table></div>
+    </div>
+  </div>
+  <div class="col-xl-6">
+    <div class="card h-100">
+      <div class="card-header"><h2 class="card-title-sm">Average LCR cost by region</h2>
+        <p class="card-sub">Mean primary-route cost per minute (USD). Satellite services are excluded from the average.</p></div>
+      <div class="card-body">
+        {% if chart_data.regions.labels %}
+        <div class="chart-box tall"><canvas id="regionCost" role="img" aria-label="Average LCR cost per minute by region"></canvas></div>
+        {% else %}<div class="empty-state"><i class="bi bi-diagram-3"></i>Run LCR to see costs by region.</div>{% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-xl-6">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-start gap-2">
+        <div><h2 class="card-title-sm">Customer margins</h2><p class="card-sub">Average margin on each customer's latest rate sheet.</p></div>
+        <div class="btn-group btn-group-sm">
+          <a class="btn btn-outline-secondary" href="?export=margins&fmt=xlsx"><i class="bi bi-file-earmark-excel"></i></a>
+          <a class="btn btn-outline-secondary" href="?export=margins&fmt=csv"><i class="bi bi-filetype-csv"></i></a>
+        </div>
+      </div>
+      <div class="card-body">
+        {% if margins %}<div class="chart-box" style="height:200px"><canvas id="marginChart" role="img" aria-label="Average margin percent by customer"></canvas></div>
+        {% else %}<div class="empty-state"><i class="bi bi-file-earmark-spreadsheet"></i>No rate sheets yet.</div>{% endif %}
+      </div>
+      <div class="table-wrap"><table class="table table-sm">
+        <thead><tr><th>Customer</th><th>Latest sheet</th><th class="text-end">Lines</th><th class="text-end">Avg cost</th><th class="text-end">Avg sell</th><th class="text-end">Margin</th></tr></thead>
+        <tbody>{% for m in margins %}<tr><td>{{ m.customer }}</td><td><a href="{% url 'routing:ratesheet_detail' m.sheet_id %}">{{ m.reference }}</a></td>
+          <td class="num">{{ m.lines }}</td><td class="num">{{ m.avg_cost|rate }}</td><td class="num">{{ m.avg_sell|rate }}</td><td class="num">{{ m.margin_pct|pct }}</td></tr>
+        {% endfor %}</tbody>
+      </table></div>
+    </div>
+  </div>
+  <div class="col-xl-6">
+    <div class="card h-100">
+      <div class="card-header"><h2 class="card-title-sm">Vendor rate changes (last 90 days)</h2>
+        <p class="card-sub">Price decreases and increases in activated decks. New prefixes are listed in the table.</p></div>
+      <div class="card-body">
+        {% if changes %}<div class="chart-box" style="height:240px"><canvas id="changeChart" role="img" aria-label="Rate decreases, increases and new prefixes per vendor"></canvas></div>
+        {% else %}<div class="empty-state"><i class="bi bi-arrow-left-right"></i>No activated decks in the last 90 days.</div>{% endif %}
+      </div>
+      <div class="table-wrap"><table class="table table-sm">
+        <thead><tr><th>Vendor</th><th class="text-end">Decks</th><th class="text-end">New</th><th class="text-end">Increases</th><th class="text-end">Decreases</th><th class="text-end">Removed</th></tr></thead>
+        <tbody>{% for c in changes %}<tr><td>{{ c.vendor }}</td><td class="num">{{ c.decks }}</td><td class="num">{{ c.new }}</td><td class="num">{{ c.increases }}</td><td class="num">{{ c.decreases }}</td><td class="num">{{ c.removed }}</td></tr>{% endfor %}</tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-start gap-2">
+    <div><h2 class="card-title-sm">LCR cost by country</h2><p class="card-sub">Built with a Pandas group-by over the latest LCR run.</p></div>
+    <div class="btn-group btn-group-sm">
+      <a class="btn btn-outline-secondary" href="?export=countries&fmt=xlsx"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+      <a class="btn btn-outline-secondary" href="?export=countries&fmt=csv"><i class="bi bi-filetype-csv me-1"></i>CSV</a>
+    </div>
+  </div>
+  <div class="table-wrap" style="max-height:520px"><table class="table table-sm table-hover">
+    <thead class="sticky-top"><tr><th>Country</th><th>Region</th><th class="text-end">Prefixes</th><th class="text-end">Min cost</th><th class="text-end">Avg cost</th><th class="text-end">Max cost</th><th>Most used vendor</th><th class="text-end">No backup</th></tr></thead>
+    <tbody>{% for c in by_country %}<tr>
+      <td class="fw-semibold">{{ c.country }}</td><td class="small text-body-secondary">{{ c.region }}</td><td class="num">{{ c.prefixes }}</td>
+      <td class="num">{{ c.min_cost|rate }}</td><td class="num">{{ c.avg_cost|rate }}</td><td class="num">{{ c.max_cost|rate }}</td>
+      <td>{{ c.top_vendor }}</td><td class="num {% if c.no_backup %}text-warning-emphasis fw-semibold{% endif %}">{{ c.no_backup }}</td></tr>
+    {% empty %}<tr><td colspan="8" class="text-body-secondary">Run LCR to see this report.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</div>
+{{ chart_data|json_script:"report-data" }}
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'vendor/chartjs/chart.umd.min.js' %}"></script>
+<script src="{% static 'js/charts.js' %}"></script>
+<script>
+  const d = RouteRateCharts.read("report-data");
+  const pctFmt = (v) => Number(v).toFixed(1) + "%";
+  if (d.vendors.labels.length) {
+    new Chart(document.getElementById("vendorAbove"), {
+      type: "bar",
+      data: { labels: d.vendors.labels, datasets: [{ label: "Avg above cheapest", data: d.vendors.above,
+        backgroundColor: d.vendors.colors, borderRadius: 4, borderSkipped: "start", maxBarThickness: 22 }] },
+      options: { indexAxis: "y", plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: (c) => " Avg above cheapest: " + pctFmt(c.raw) } } },
+        scales: { x: { beginAtZero: true, grid: { color: "#e9ebf0" }, border: { display: false }, ticks: { callback: pctFmt, color: "#898781" } },
+                  y: { grid: { display: false }, border: { color: "#c3c2b7" } } } },
+    });
+  }
+  if (d.regions.labels.length) RouteRateCharts.horizontal("regionCost", d.regions.labels, d.regions.values, "#2a78d6", RouteRateCharts.fmtRate, "Avg cost / min");
+  if (d.margins.labels.length) RouteRateCharts.horizontal("marginChart", d.margins.labels, d.margins.values, "#1baf7a", pctFmt, "Avg margin");
+  if (d.changes.labels.length) RouteRateCharts.rateChanges("changeChart", d.changes);
+</script>
+{% endblock %}

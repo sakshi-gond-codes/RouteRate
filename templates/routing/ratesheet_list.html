@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% load routerate humanize %}
+{% block title %}Customer rate sheets{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><div class="eyebrow">Routing</div><h1>Customer rate sheets</h1>
+    <p class="lead-sm">Versioned price lists. Each one is compared with the customer's previous sheet so changes are clear.</p></div>
+  {% if user.can_manage_rates %}<a class="btn btn-primary" href="{% url 'routing:ratesheet_create' %}"><i class="bi bi-file-earmark-plus me-1"></i>Generate rate sheet</a>{% endif %}
+</div>
+<div class="card">
+  <form class="filter-bar" method="get">
+    <div><label class="d-block">Customer</label><select class="form-select form-select-sm auto-submit" name="customer"><option value="">All customers</option>
+      {% for c in customers %}<option value="{{ c.pk }}" {% if request.GET.customer == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></div>
+  </form>
+  <div class="table-wrap"><table class="table table-hover">
+    <thead><tr><th>Reference</th><th>Customer</th><th>Effective</th><th class="text-end">Lines</th><th>Changes vs previous</th><th class="text-end">Avg cost</th><th class="text-end">Avg sell</th><th class="text-end">Margin</th><th>Issued</th><th>Download</th></tr></thead>
+    <tbody>{% for s in page %}<tr>
+      <td><a class="fw-semibold mono small" href="{% url 'routing:ratesheet_detail' s.pk %}">{{ s.reference }}</a></td>
+      <td>{{ s.customer.name }}</td><td class="small">{{ s.effective_date|date:"d M Y" }}</td><td class="num">{{ s.line_count|intcomma }}</td>
+      <td class="small text-nowrap"><span class="text-primary">{{ s.new_count }} new</span> · <span class="text-danger">{{ s.increase_count }}↑</span> · <span class="text-success">{{ s.decrease_count }}↓</span>{% if s.removed_count %} · {{ s.removed_count }} removed{% endif %}</td>
+      <td class="num">{{ s.avg_cost|rate }}</td><td class="num">{{ s.avg_sell|rate }}</td><td class="num">{{ s.avg_margin_pct|pct }}</td>
+      <td class="small text-body-secondary text-nowrap">{{ s.created_at|date:"d M Y" }}<div>{{ s.created_by.display_name }}</div></td>
+      <td class="text-nowrap"><a class="btn btn-sm btn-light border" href="{% url 'routing:ratesheet_export' s.pk %}?fmt=xlsx" title="Customer Excel"><i class="bi bi-file-earmark-excel"></i></a>
+        <a class="btn btn-sm btn-light border" href="{% url 'routing:ratesheet_export' s.pk %}?fmt=csv" title="Customer CSV"><i class="bi bi-filetype-csv"></i></a></td>
+    </tr>{% empty %}<tr><td colspan="10"><div class="empty-state"><i class="bi bi-file-earmark-spreadsheet"></i>No rate sheets yet.</div></td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% include "includes/pagination.html" %}
+</div>
+{% endblock %}

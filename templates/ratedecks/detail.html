@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% load routerate humanize %}
+{% block title %}{{ deck.vendor.code }} deck #{{ deck.pk }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><div class="eyebrow"><a class="text-decoration-none" href="{% url 'ratedecks:history' %}">Processing history</a> / deck #{{ deck.pk }}</div>
+    <h1>{{ deck.vendor.name }} <span class="text-body-secondary fw-normal fs-5">· {% if deck.deck_type == 'full' %}Full A-Z deck{% else %}Partial update{% endif %}</span></h1>
+    <p class="lead-sm"><i class="bi bi-file-earmark me-1"></i><a href="{% url 'ratedecks:download' deck.pk %}">{{ deck.original_filename }}</a>
+      · uploaded {{ deck.uploaded_at|date:"d M Y H:i" }} by {{ deck.uploaded_by.display_name|default:"—" }}
+      {% if deck.effective_date %}· effective <b>{{ deck.effective_date|date:"d M Y" }}</b>{% endif %}
+      {% if deck.notes %}· {{ deck.notes }}{% endif %}</p>
+  </div>
+  <div class="d-flex flex-wrap gap-2 align-items-center">
+    {% status_badge deck.status deck.get_status_display %}
+    <div class="dropdown">
+      <button class="btn btn-light border btn-sm dropdown-toggle" data-bs-toggle="dropdown"><i class="bi bi-download me-1"></i>Export</button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li><h6 class="dropdown-header">Normalized rates</h6></li>
+        <li><a class="dropdown-item" href="{% url 'ratedecks:export' deck.pk 'lines' %}?fmt=xlsx">Excel (.xlsx)</a></li>
+        <li><a class="dropdown-item" href="{% url 'ratedecks:export' deck.pk 'lines' %}?fmt=csv">CSV</a></li>
+        <li><h6 class="dropdown-header">Error report</h6></li>
+        <li><a class="dropdown-item" href="{% url 'ratedecks:export' deck.pk 'errors' %}?fmt=xlsx">Excel (.xlsx)</a></li>
+        <li><a class="dropdown-item" href="{% url 'ratedecks:export' deck.pk 'errors' %}?fmt=csv">CSV</a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item" href="{% url 'ratedecks:download' deck.pk %}">Original file</a></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+{% if deck.status == 'validated' or deck.status == 'uploaded' or deck.status == 'failed' %}
+  {% with step=3 %}{% include "ratedecks/_steps.html" %}{% endwith %}
+{% elif deck.status == 'active' %}
+  {% with step=5 %}{% include "ratedecks/_steps.html" %}{% endwith %}
+{% endif %}
+
+{% if deck.status == 'validated' and user.can_manage_rates %}
+<div class="card mb-3 border-primary-subtle"><div class="card-body d-flex flex-wrap align-items-center gap-3">
+  <div class="flex-grow-1">
+    <div class="fw-bold"><i class="bi bi-rocket-takeoff text-primary me-1"></i>Ready to activate</div>
+    <div class="small text-body-secondary">
+      {{ deck.prefix_count|intcomma }} rates will go live from their effective dates.
+      {% if deck.deck_type == 'full' %}This is a full A-Z deck: {{ deck.removed_count }} of the vendor's {{ live_count|intcomma }} current prefixes are missing from it and will be closed on {{ deck.effective_date|date:"d M Y" }}.{% else %}Partial update: the vendor's other prefixes are not touched.{% endif %}
+      Old rates are closed, never deleted, so history stays available.
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-light border" href="{% url 'ratedecks:map' deck.pk %}"><i class="bi bi-arrow-left me-1"></i>Change mapping</a>
+    <form method="post" action="{% url 'ratedecks:discard' deck.pk %}" data-confirm="Discard this deck? Nothing will change in the routing table.">{% csrf_token %}
+      <button class="btn btn-outline-danger" type="submit" data-no-busy>Discard</button></form>
+    <form method="post" action="{% url 'ratedecks:activate' deck.pk %}" data-busy="Activating…"
+      data-confirm="Activate {{ deck.prefix_count }} rates for {{ deck.vendor.name }}?{% if deck.removed_count %} {{ deck.removed_count }} prefixes will be closed.{% endif %}">{% csrf_token %}
+      <button class="btn btn-primary" type="submit"><i class="bi bi-check2-circle me-1"></i>Activate deck</button></form>
+  </div>
+</div></div>
+{% elif deck.status == 'uploaded' and user.can_manage_rates %}
+<div class="alert alert-info d-flex align-items-center gap-2"><i class="bi bi-info-circle"></i>This deck has not been processed yet.
+  <a class="alert-link ms-auto" href="{% url 'ratedecks:map' deck.pk %}">Map columns</a></div>
+{% elif deck.status == 'failed' and user.can_manage_rates %}
+<div class="alert alert-danger d-flex align-items-center gap-2"><i class="bi bi-x-octagon"></i>Processing found no valid rates. Check the mapping and the error report.
+  <a class="alert-link ms-auto" href="{% url 'ratedecks:map' deck.pk %}">Change mapping</a></div>
+{% elif deck.status == 'active' %}
+<div class="alert alert-success d-flex align-items-center gap-2"><i class="bi bi-check-circle"></i>
+  Activated {{ deck.activated_at|date:"d M Y H:i" }} by {{ deck.activated_by.display_name|default:"system" }}. These rates are in the live routing table.</div>
+{% endif %}
+
+<div class="card mb-3"><div class="stat-strip">
+  <div><div class="s-label">Rows read</div><div class="s-value">{{ deck.total_rows|intcomma }}</div></div>
+  <div><div class="s-label">Rows accepted</div><div class="s-value text-success">{{ deck.valid_rows|intcomma }}</div></div>
+  <div><div class="s-label">Rows rejected</div><div class="s-value {% if deck.error_rows %}text-danger{% endif %}">{{ deck.error_rows|intcomma }}</div><div class="small text-body-secondary">{{ deck.error_rate }}% of rows</div></div>
+  <div><div class="s-label">Duplicates removed</div><div class="s-value">{{ deck.duplicate_count }}</div></div>
+  <div><div class="s-label">Prefixes</div><div class="s-value">{{ deck.prefix_count|intcomma }}</div>{% if deck.expanded_count %}<div class="small text-body-secondary">+{{ deck.expanded_count }} from lists/ranges</div>{% endif %}</div>
+  <div><div class="s-label">Processed in</div><div class="s-value">{{ deck.processing_ms }}<span class="fs-6 fw-normal"> ms</span></div></div>
+</div></div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg"><a class="kpi-link" href="?tab=lines&change=new"><div class="card kpi"><div class="kpi-label">{% change_badge 'new' %}</div><div class="kpi-value">{{ deck.new_count }}</div></div></a></div>
+  <div class="col-6 col-lg"><a class="kpi-link" href="?tab=lines&change=increase"><div class="card kpi"><div class="kpi-label">{% change_badge 'increase' %}</div><div class="kpi-value">{{ deck.increase_count }}</div></div></a></div>
+  <div class="col-6 col-lg"><a class="kpi-link" href="?tab=lines&change=decrease"><div class="card kpi"><div class="kpi-label">{% change_badge 'decrease' %}</div><div class="kpi-value">{{ deck.decrease_count }}</div></div></a></div>
+  <div class="col-6 col-lg"><a class="kpi-link" href="?tab=lines&change=unchanged"><div class="card kpi"><div class="kpi-label">{% change_badge 'unchanged' %}</div><div class="kpi-value">{{ deck.unchanged_count }}</div></div></a></div>
+  <div class="col-6 col-lg"><div class="card kpi"><div class="kpi-label">{% change_badge 'removed' %}</div><div class="kpi-value">{{ deck.removed_count }}</div><div class="kpi-foot">{% if deck.deck_type == 'full' %}missing from full deck{% else %}n/a for partial{% endif %}</div></div></div>
+</div>
+
+<div class="card">
+  <ul class="nav nav-tabs-rr">
+    <li class="nav-item"><a class="nav-link {% if tab == 'lines' %}active{% endif %}" href="?tab=lines">Normalized rates<span class="count">{{ deck.prefix_count }}</span></a></li>
+    <li class="nav-item"><a class="nav-link {% if tab == 'errors' %}active{% endif %}" href="?tab=errors">Errors<span class="count">{{ issue_counts.errors }}</span></a></li>
+    <li class="nav-item"><a class="nav-link {% if tab == 'warnings' %}active{% endif %}" href="?tab=warnings">Warnings<span class="count">{{ issue_counts.warnings }}</span></a></li>
+    <li class="nav-item"><a class="nav-link {% if tab == 'duplicates' %}active{% endif %}" href="?tab=duplicates">Duplicates<span class="count">{{ issue_counts.duplicates }}</span></a></li>
+    <li class="nav-item"><a class="nav-link {% if tab == 'log' %}active{% endif %}" href="?tab=log">Processing log</a></li>
+  </ul>
+
+  {% if tab == 'lines' %}
+  <form class="filter-bar rounded-0" method="get"><input type="hidden" name="tab" value="lines">
+    <div><label class="d-block">Change</label><select class="form-select form-select-sm auto-submit" name="change">
+      <option value="">All</option>{% for v, l in change_choices %}<option value="{{ v }}" {% if change_filter == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+    <div><label class="d-block">Search</label><input class="form-control form-control-sm" name="q" value="{{ request.GET.q }}" placeholder="Prefix or destination"></div>
+    <button class="btn btn-sm btn-light border" type="submit">Filter</button>
+  </form>
+  <div class="table-wrap"><table class="table table-sm table-hover">
+    <thead><tr><th>Prefix</th><th>Destination</th><th>Country</th><th class="text-end">Rate</th><th class="text-end">Current</th><th>Change</th><th>Increment</th><th>Effective</th><th class="text-end">Row</th></tr></thead>
+    <tbody>{% for l in page %}<tr>
+      <td><code class="prefix">{{ l.prefix }}</code></td><td>{{ l.destination }}</td><td class="small text-body-secondary">{{ l.country.name }}</td>
+      <td class="num fw-semibold">{{ l.rate|rate }}</td><td class="num text-body-secondary">{{ l.previous_rate|rate }}</td>
+      <td>{% change_badge l.change %}</td><td class="mono small">{{ l.increment }}</td><td class="small">{{ l.effective_date|date:"d M Y" }}</td>
+      <td class="num small text-body-secondary">{{ l.row_number }}</td></tr>
+    {% empty %}<tr><td colspan="9"><div class="empty-state"><i class="bi bi-inbox"></i>No rates.</div></td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% include "includes/pagination.html" %}
+
+  {% elif tab == 'log' %}
+  <div class="card-body"><ul class="timeline">
+    {% for log in logs %}<li><span class="t-icon {{ log.level }}"><i class="bi {% if log.level == 'success' %}bi-check-lg{% elif log.level == 'warning' %}bi-exclamation{% elif log.level == 'error' %}bi-x-lg{% else %}bi-dot{% endif %}"></i></span>
+      <div><div>{{ log.message }}</div><div class="small text-body-secondary">{{ log.created_at|date:"d M Y H:i:s" }}</div></div></li>
+    {% empty %}<li class="text-body-secondary">No log entries yet.</li>{% endfor %}
+  </ul></div>
+
+  {% else %}
+  <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-body-tertiary small">
+    <span class="text-body-secondary">{% if tab == 'errors' %}Rows with errors are rejected and not imported.{% elif tab == 'warnings' %}Warnings are imported but worth checking.{% else %}Duplicate prefixes resolved with policy: <b>{{ deck.get_duplicate_policy_display }}</b>.{% endif %}</span>
+    <span><a href="{% url 'ratedecks:export' deck.pk 'errors' %}?fmt=xlsx"><i class="bi bi-file-earmark-excel me-1"></i>Full error report</a></span>
+  </div>
+  <div class="table-wrap"><table class="table table-sm table-hover">
+    <thead><tr><th class="text-end" style="width:70px">Row</th><th>Field</th><th>Value</th><th>Problem</th></tr></thead>
+    <tbody>{% for i in page %}<tr>
+      <td class="num">{{ i.row_number|default:"all" }}</td><td class="small">{{ i.field }}</td>
+      <td class="mono small">{{ i.value|default:"(empty)"|truncatechars:40 }}</td>
+      <td><i class="bi {% if i.level == 'error' %}bi-x-circle text-danger{% elif i.level == 'warning' %}bi-exclamation-triangle text-warning{% else %}bi-files text-secondary{% endif %} me-1"></i>{{ i.message }}</td></tr>
+    {% empty %}<tr><td colspan="4"><div class="empty-state"><i class="bi bi-check2-circle text-success"></i>Nothing to report.</div></td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% include "includes/pagination.html" %}
+  {% endif %}
+</div>
+{% endblock %}
